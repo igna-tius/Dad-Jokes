@@ -11,42 +11,90 @@ class JokeList extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      jokes: []
+      jokes: JSON.parse(window.localStorage.getItem("jokes") || "[]"),
+      loading: false
     };
+    this.seenJoke = new Set(this.state.jokes.map(m => m.joke));
+    console.log(this.seenJoke);
+    this.handleClick = this.handleClick.bind(this);
   }
-  async componentDidMount() {
+  componentDidMount() {
     //Load Jokes
-    let jokes = [];
-    while (jokes.length < this.props.numJokesToGet) {
-      let res = await axios.get("https://icanhazdadjoke.com/", {
-        headers: { Accept: "application/json" }
-      });
-      jokes.push({ id: uuid(), joke: res.data.joke, votes: 0 });
+    if (this.state.jokes.length === 0) this.getJokes();
+  }
+
+  async getJokes() {
+    try {
+      let jokes = [];
+      while (jokes.length < this.props.numJokesToGet) {
+        let res = await axios.get("https://icanhazdadjoke.com/", {
+          headers: { Accept: "application/json" }
+        });
+        if (!this.seenJoke.has(res.data.joke)) {
+          jokes.push({ id: uuid(), joke: res.data.joke, votes: 0 });
+        } else {
+          console.log("Found Duplicate");
+          console.log(res.data.joke);
+        }
+      }
+      this.setState(
+        st => ({
+          loading: false,
+          jokes: [...st.jokes, ...jokes]
+        }),
+        () =>
+          window.localStorage.setItem("jokes", JSON.stringify(this.state.jokes))
+      );
+    } catch (err) {
+      alert(err);
+      this.setState({ Loading: false });
     }
-    this.setState({ jokes: jokes });
+  }
+
+  handleClick() {
+    this.setState({ loading: true }, this.getJokes);
   }
 
   handleVote(id, delta) {
-    this.setState(st => ({
-      jokes: st.jokes.map(j =>
-        j.id === id ? { ...j, votes: j.votes + delta } : j
-      )
-    }));
+    this.setState(
+      st => ({
+        jokes: st.jokes.map(j =>
+          j.id === id ? { ...j, votes: j.votes + delta } : j
+        )
+      }),
+      () =>
+        window.localStorage.setItem("jokes", JSON.stringify(this.state.jokes))
+    );
   }
 
   render() {
+    if (this.state.loading) {
+      console.log("loading");
+      return (
+        <div className="JokeList-spinner">
+          <i className="far fa-8x fa-laugh fa-spin" />
+          <h1 className="JokeList-title">loading...</h1>
+        </div>
+      );
+    }
+    let jokes = this.state.jokes.sort((a, b) => b.votes - a.votes);
     return (
       <div className="JokeList">
         <div className="JokeList-sidebar">
           <h1 className="JokeList-title">
             <span>Dad</span> Jokes
           </h1>
-          <img src="https://assets.dryicons.com/uploads/icon/svg/8927/0eb14c71-38f2-433a-bfc8-23d9c99b3647.svg" />
-          <button className="JokeList-getmore">New Jokes</button>
+          <img
+            src="https://assets.dryicons.com/uploads/icon/svg/8927/0eb14c71-38f2-433a-bfc8-23d9c99b3647.svg"
+            alt="smiley"
+          />
+          <button className="JokeList-getmore" onClick={this.handleClick}>
+            Fetch Jokes
+          </button>
         </div>
 
         <div className="JokeList-jokes">
-          {this.state.jokes.map(m => (
+          {jokes.map(m => (
             <Joke
               key={m.id}
               votes={m.votes}

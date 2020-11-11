@@ -1,3 +1,5 @@
+Live: https://ecstatic-meninsky-29c460.netlify.app/
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts
